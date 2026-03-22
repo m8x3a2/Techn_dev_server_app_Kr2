@@ -2,7 +2,7 @@
 
 Серверное приложение на FastAPI, реализующее базовые механизмы работы с данными, аутентификацию через куки и обработку HTTP-заголовков.
 
-## Быстрый старт
+После импорта из github загрузка библиотек и запуск сервера, с постоянным обновлением если будет изменение.
 
 ```bash
 pip install -r requirements.txt
@@ -15,21 +15,7 @@ uvicorn app:app --reload
 
 ## Структура
 
-```
-.
-├── app.py            # Главный файл приложения
-├── models.py         # Pydantic-схемы
-├── db.py             # Тестовые данные (имитация БД)
-├── requirements.txt
-└── routers/
-    ├── task31.py     # 3.1 — создание пользователя
-    ├── task32.py     # 3.2 — продукты и поиск
-    ├── task51.py     # 5.1 — куки-аутентификация (UUID)
-    ├── task52.py     # 5.2 — подписанные куки (itsdangerous)
-    ├── task53.py     # 5.3 — сессия с динамическим TTL
-    ├── task54.py     # 5.4 — чтение заголовков запроса
-    └── task55.py     # 5.5 — переиспользуемая модель CommonHeaders
-```
+![Структура](image/image.png)
 
 ---
 
@@ -138,8 +124,9 @@ curl http://localhost:8000/info \
 ---
 
 ## Тестовые пользователи
+username: user0
+password: passwor0
 
-| username | password |
-|---|---|
-| user123 | password123 |
-| admin | admin123 |
+username: admin0
+password: admin0
+
