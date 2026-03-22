@@ -1,141 +1,138 @@
-# КР №2 — Технологии разработки серверных приложений
+# Контрольная работа №2 — FastAPI
 
-## Установка и запуск
+Серверное приложение на FastAPI, реализующее базовые механизмы работы с данными, аутентификацию через куки и обработку HTTP-заголовков.
+
+## Быстрый старт
 
 ```bash
 pip install -r requirements.txt
 uvicorn app:app --reload
 ```
 
-Документация Swagger: http://127.0.0.1:8000/docs
+После запуска Swagger-документация доступна по адресу: http://localhost:8000/docs
 
 ---
 
-## Структура проекта
+## Структура
 
 ```
-kr2/
-├── app.py            # Точка входа, подключение всех роутеров
-├── models.py         # Pydantic-модели
-├── db.py             # Симуляция базы данных
+.
+├── app.py            # Главный файл приложения
+├── models.py         # Pydantic-схемы
+├── db.py             # Тестовые данные (имитация БД)
 ├── requirements.txt
 └── routers/
-    ├── task31.py     # Задание 3.1 — POST /create_user
-    ├── task32.py     # Задание 3.2 — GET /product/{id}, GET /products/search
-    ├── task51.py     # Задание 5.1 — Cookie-аутентификация (UUID)
-    ├── task52.py     # Задание 5.2 — Подписанные cookie (itsdangerous)
-    ├── task53.py     # Задание 5.3 — Динамический TTL сессии
-    ├── task54.py     # Задание 5.4 — Заголовки User-Agent / Accept-Language
-    └── task55.py     # Задание 5.5 — CommonHeaders модель (DRY)
+    ├── task31.py     # 3.1 — создание пользователя
+    ├── task32.py     # 3.2 — продукты и поиск
+    ├── task51.py     # 5.1 — куки-аутентификация (UUID)
+    ├── task52.py     # 5.2 — подписанные куки (itsdangerous)
+    ├── task53.py     # 5.3 — сессия с динамическим TTL
+    ├── task54.py     # 5.4 — чтение заголовков запроса
+    └── task55.py     # 5.5 — переиспользуемая модель CommonHeaders
 ```
 
 ---
 
-## Описание заданий и примеры запросов
+## Задания
 
-### Задание 3.1 — POST /create_user
+### 3.1 — POST /create_user
 
-Pydantic-модель `UserCreate` с валидацией полей.
+Принимает данные пользователя в JSON. Поля `name` и `email` обязательны, `age` и `is_subscribed` — опциональные.
 
 ```bash
 curl -X POST http://localhost:8000/create_user \
   -H "Content-Type: application/json" \
-  -d '{"name":"Alice","email":"alice@example.com","age":30,"is_subscribed":true}'
+  -d '{"name": "Alice", "email": "alice@example.com", "age": 30, "is_subscribed": true}'
 ```
 
 ---
 
-### Задание 3.2 — GET /product/{product_id} и GET /products/search
+### 3.2 — GET /product/{product_id} и GET /products/search
 
-> Маршрут `/products/search` объявлен **раньше** `/product/{product_id}`, чтобы FastAPI не пытался привести `"search"` к `int`.
+Два маршрута для работы с товарами. Маршрут `/products/search` объявлен первым — иначе FastAPI попытается интерпретировать строку `search` как `int`.
 
 ```bash
-# Получить продукт по ID
+# по ID
 curl http://localhost:8000/product/123
 
-# Поиск по ключевому слову
+# поиск с фильтрами
 curl "http://localhost:8000/products/search?keyword=phone&category=Electronics&limit=5"
 ```
 
 ---
 
-### Задание 5.1 — Cookie-аутентификация (простая)
+### 5.1 — Куки-аутентификация
+
+Логин сохраняет `session_token` в куки (UUID). Маршрут `/user` проверяет наличие и валидность токена.
 
 ```bash
-# Логин — получаем cookie session_token
 curl -c cookies.txt -X POST http://localhost:8000/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"user123","password":"password123"}'
+  -d '{"username": "user123", "password": "password123"}'
 
-# Доступ к профилю с cookie
 curl -b cookies.txt http://localhost:8000/user
-
-# Без cookie → 401
-curl http://localhost:8000/user
 ```
+
+Без куки или с неверным значением — `401 Unauthorized`.
 
 ---
 
-### Задание 5.2 — Подписанные cookie (itsdangerous)
+### 5.2 — Подписанные куки (itsdangerous)
 
-Токен имеет вид `<user_id>.<signature>`. Любое изменение cookie → 401.
+Токен имеет вид `<user_id>.<signature>`. Библиотека `itsdangerous` подписывает и верифицирует значение — любое изменение куки приводит к 401.
 
 ```bash
 curl -c c52.txt -X POST http://localhost:8000/login52 \
   -H "Content-Type: application/json" \
-  -d '{"username":"user123","password":"password123"}'
+  -d '{"username": "user123", "password": "password123"}'
 
 curl -b c52.txt http://localhost:8000/profile
 ```
 
 ---
 
-### Задание 5.3 — Динамический TTL сессии
+### 5.3 — Динамический TTL сессии
 
-Формат токена: `<user_id>.<timestamp>.<hmac_signature>`
+Токен: `<user_id>.<timestamp>.<hmac_signature>`
 
-| Прошло с последней активности | Действие |
+Логика обновления куки при обращении к `/profile53`:
+
+| Время с последней активности | Результат |
 |---|---|
-| < 3 мин | Кука **не** обновляется |
-| 3–5 мин | Кука **обновляется** на 5 мин |
-| > 5 мин | **401 Session expired** |
+| менее 3 мин | кука не меняется |
+| от 3 до 5 мин | кука обновляется (+5 мин) |
+| более 5 мин | 401 Session expired |
 
 ```bash
 curl -c c53.txt -X POST http://localhost:8000/login53 \
   -H "Content-Type: application/json" \
-  -d '{"username":"user123","password":"password123"}'
+  -d '{"username": "user123", "password": "password123"}'
 
 curl -b c53.txt http://localhost:8000/profile53
 ```
 
 ---
 
-### Задание 5.4 — Заголовки запроса
+### 5.4 — Чтение заголовков запроса
+
+Эндпоинт `/headers` извлекает `User-Agent` и `Accept-Language` из запроса. Если заголовки отсутствуют — возвращает 400.
 
 ```bash
 curl http://localhost:8000/headers \
-  -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
-  -H "Accept-Language: en-US,en;q=0.9,es;q=0.8"
-
-# Без заголовков → 400
-curl http://localhost:8000/headers
+  -H "User-Agent: Mozilla/5.0" \
+  -H "Accept-Language: en-US,en;q=0.9"
 ```
 
 ---
 
-### Задание 5.5 — CommonHeaders (DRY)
+### 5.5 — CommonHeaders (DRY)
 
-Зависимость `extract_common_headers` переиспользуется в двух маршрутах.
+Модель `CommonHeaders` на Pydantic переиспользуется в двух маршрутах — `/headers55` и `/info`. Маршрут `/info` дополнительно возвращает HTTP-заголовок `X-Server-Time` с текущим временем сервера.
 
 ```bash
-curl http://localhost:8000/headers55 \
-  -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
-  -H "Accept-Language: en-US,en;q=0.9"
-
 curl http://localhost:8000/info \
-  -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
-  -H "Accept-Language: en-US,en;q=0.9"
-# Ответ содержит HTTP-заголовок X-Server-Time
+  -H "User-Agent: Mozilla/5.0" \
+  -H "Accept-Language: ru-RU,ru;q=0.9,en;q=0.8"
 ```
 
 ---
